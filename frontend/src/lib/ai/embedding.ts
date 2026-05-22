@@ -3,11 +3,12 @@ import { embed } from "ai";
 import { cosineDistance, desc, gt, sql } from "drizzle-orm";
 import { db } from "../db";
 import { embeddings } from "../db/schema/embeddings";
+import { EMBEDDING_MODEL } from "./models";
 
 export const generateEmbedding = async (value: string): Promise<number[]> => {
 	const input = value.replaceAll("\\n", " ");
 	const { embedding } = await embed({
-		model: google.textEmbeddingModel("text-embedding-004", {
+		model: google.textEmbeddingModel(EMBEDDING_MODEL, {
 			outputDimensionality: 768,
 		}),
 		value: input,

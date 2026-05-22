@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LawyerGPT Frontend
+
+This is the Next.js application for LawyerGPT. It provides the authenticated chat UI, document upload flow, streaming Gemini responses, RAG tool calls, Drizzle database access, and Unkey rate limiting.
+
+For the full system overview, see the root `readme.md`.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+cp .env.example .env
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `https://localhost:3000` in your browser. Development uses Next.js experimental HTTPS so the browser may ask you to trust a local certificate.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Useful Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `pnpm dev`: run the local Next.js server.
+- `pnpm build`: build the app.
+- `pnpm lint`: format and check `src` with Biome.
+- `pnpm db:generate`: generate Drizzle migrations.
+- `pnpm db:migrate`: run local migrations.
 
-## Learn More
+## Key Paths
 
-To learn more about Next.js, take a look at the following resources:
+- `src/app/api/chat/[id]/route.ts`: streaming chat API route.
+- `src/app/(app)/components/FileUpload.tsx`: document upload flow.
+- `src/lib/ai`: Gemini client, model constants, prompts, embeddings, and retrieval.
+- `src/lib/db`: Drizzle schema, migrations, and database client.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Copy `.env.example` to `.env` and fill in the required values:
 
-## Deploy on Vercel
+- `DATABASE_URL`
+- `GEMINI_API_KEY`
+- `NEXT_PUBLIC_UPLOADER_URL`
+- `NEXT_PUBLIC_API_KEY`
+- `UNKEY_ROOT_KEY`
+- `PRIMARY_MAIL_I`
+- `PRIMARY_MAIL_II`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Model Configuration
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Model names live in `src/lib/ai/models.ts` so chat, title generation, and embeddings can be reviewed or upgraded in one place.

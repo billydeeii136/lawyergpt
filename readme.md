@@ -1,137 +1,113 @@
 # LawyerGPT
 
-LawyerGPT is a legal document processing and query system that leverages AI to assist users in understanding and interacting with legal content. Specifically geared towards Nigerian law, it is trained on Nigerian financial law judgments and legal documents. The platform enables users to upload legal documents and ask questions about them, receiving AI-powered responses (powered by the Vercel SDK using Google Gemini). LawyerGPT uses cutting-edge technologies for document embedding, storage, and retrieval, making legal research more accessible and efficient.
+LawyerGPT is a full-stack legal research assistant for Nigerian law. It combines a Next.js chat interface, a Go ingestion API, PostgreSQL vector search, and Google Gemini models to let users upload legal documents, generate embeddings, and ask context-aware questions over the resulting knowledge base.
+
+The project is currently paused because of hosted model and infrastructure costs, but the codebase demonstrates the core product architecture for retrieval-augmented legal AI: document parsing, OCR fallback, embeddings, vector retrieval, tool-calling chat, rate limiting, and HTTPS local development.
 
 > Illustrations by Popsy.co
 
-> [!IMPORTANT]  
-> Project paused due to billing costs.
+## Highlights
 
-## Features
+- **RAG legal chat**: streams answers through the [Vercel AI SDK](https://sdk.vercel.ai/docs/introduction), using Gemini 3.1 Flash-Lite for cost-sensitive legal Q&A.
+- **Document ingestion**: accepts PDF, DOCX, and image uploads, extracts text, chunks content, and stores embeddings for retrieval.
+- **Nigerian law focus**: ships with prompts, seed ingestion utilities, and sample court judgment sources geared toward Nigerian legal research.
+- **Go processing layer**: keeps file parsing, OCR, embedding generation, and bulk text ingestion outside the web app.
+- **Vector search**: stores document chunks in PostgreSQL with `pgvector` for semantic retrieval during conversations.
+- **Operational guardrails**: uses Unkey rate limiting, Caddy HTTPS, Docker Compose, Drizzle migrations, Biome, and GitHub Actions.
 
-- **Upload Legal Documents**: Users can upload legal files such as contracts, agreements, and case briefs.
-- **Document Embedding**: Converts legal documents into embeddings for efficient search and retrieval.
-- **Query System**: Users can ask a wide variety of legal questions, particularly around Nigerian law and financial law, and get intelligent, context-aware responses powered by Google Gemini Flash via [Vercel AI SDK](https://sdk.vercel.ai/docs/introduction) [Tool calling](https://sdk.vercel.ai/docs/ai-sdk-core/tools-and-tool-calling).
-- **Vector Search**: Uses vector databases for fast and accurate retrieval of document chunks related to user queries.
-- **API-Driven**: Offers APIs for document uploads, embeddings, and queries, making it extendable for other applications.
-- **Secure HTTPS**: Uses Caddy as a reverse proxy to serve the API over HTTPS, enhancing security.
-
-## Project structure
+## Architecture
 
 ```bash
 .
-├── api
-├── extractor
-├── frontend
-├── makefile
-└── readme
+├── api/        # Go HTTP API for uploads, parsing, OCR, embeddings, and persistence
+├── extractor/  # Optional Go CLI for scraping source URLs into the API
+├── frontend/   # Next.js app, chat UI, auth, RAG tools, and database access
+├── makefile    # Root development tasks for API, extractor, migrations, and formatting
+└── readme.md
 ```
 
-## Stack Overview
+### Frontend
 
-- **Frontend**: The frontend is a Next.js (React) application styled with Tailwind CSS, responsible for managing the AI Retrieval-Augmented Generation (RAG) conversations via the Vercel AI SDK. It handles user file uploads, leverages advanced React 19 features like Server Components and Suspense, and maintains code quality with `biome.json`. The frontend also integrates **Drizzle** for database interactions and **Unkey** for managing API rate limits. **V0** was used largely for the UI, and all conversations are powered by the **Vercel AI SDK**.
+The frontend is a Next.js app styled with Tailwind CSS. It handles authentication, conversations, uploads, rate limits, and the streaming chat route. The chat route calls a retrieval tool that embeds the user's question, searches relevant legal document chunks, and gives the result back to Gemini before streaming the answer.
 
-- **API**: A Go-based HTTP API responsible for processing file uploads and scraped content, converting them into embeddings and resources. The API handles the heavy lifting of parsing PDFs, DOCX, and OCR documents (and necessary interfacing required), ensuring fast and scalable processing of legal documents. The API is Dockerized, and the project uses **makefiles** to simplify development. **Note**: The API requires an API key from Google Gemini. You can obtain it from [Google Gemini API](https://ai.google.dev/gemini-api/docs/api-key).
+Key pieces:
 
-- **Extractor**: A Go-based script that scrapes Nigerian legal websites for court judgments and financial law documents, sending the parsed results to the API for embedding. The extractor is managed via a makefile for easy builds and execution.
+- `frontend/src/app/api/chat/[id]/route.ts` streams RAG chat responses.
+- `frontend/src/lib/ai/embedding.ts` generates query embeddings and retrieves similar chunks.
+- `frontend/src/lib/ai/models.ts` centralizes model names for chat, title generation, and embeddings.
+- `frontend/src/lib/db` contains Drizzle schema, migrations, and database access.
 
-- **Reverse Proxy**: Caddy is used as a reverse proxy to serve the API over HTTPS on localhost, enhancing security for local development.
+### Go API
 
-- **CI/CD**: GitHub Actions are utilized across the stack for automated testing, linting, and deployment. This ensures a consistent and robust development workflow, with all critical paths being covered during each code push.
+The API is a Go HTTP service that receives file uploads from the frontend and text batches from the extractor. It parses PDFs and DOCX files, falls back to OCR for scanned PDFs and images, chunks extracted content, generates Gemini embeddings, and persists resources plus vectors in Postgres.
 
-## Running the Stack
+Endpoints:
 
-### 1. **Frontend (Next.js App)**
+- `POST /upload`: accepts multipart document uploads from the frontend.
+- `POST /text-embeddings`: accepts scraped text batches from the extractor.
 
-To run the frontend, make sure you have `pnpm` installed:
+The API is normally run with Docker Compose and Caddy through `make run`.
+
+### Extractor
+
+The extractor is not called by the frontend at runtime. It is a standalone Go CLI for one-off or repeatable corpus ingestion. When run, it scrapes configured source URLs, extracts text from the configured CSS selector, batches the results, and posts them to the API's `/text-embeddings` endpoint with the shared API key.
+
+By default it includes a small set of NigerianLII judgment URLs. For broader use, configure `EXTRACTOR_URLS` and `EXTRACTOR_SELECTOR` in `extractor/.env.development`.
+
+## Running Locally
+
+### 1. Frontend
 
 ```bash
-npm install -g pnpm
+cd frontend
+cp .env.example .env
+pnpm install
+pnpm run dev
 ```
 
-**Steps:**
+The app runs at `https://localhost:3000` because local development uses Next.js experimental HTTPS.
 
-1. Copy the environment variables file:
+Required services and keys:
 
-   ```bash
-   cp .env.example .env
-   ```
+- `DATABASE_URL`: Postgres connection string used by Drizzle.
+- `GEMINI_API_KEY`: Google Gemini API key.
+- `UNKEY_ROOT_KEY`: Unkey key for rate limiting.
+- `NEXT_PUBLIC_UPLOADER_URL`: API upload URL.
+- `NEXT_PUBLIC_API_KEY`: shared API key sent to the Go API.
 
-> [!IMPORTANT]
-> For the `UNKEY_ROOT_KEY`, please find
-> it using [this guide](https://www.unkey.com/docs/ratelimiting/introduction).
-> You will also need to retrieve the `GEMINI_API_KEY` by visiting [Google Gemini API](https://ai.google.dev/gemini-api/docs/api-key).
+### 2. API
 
-2. Install dependencies:
+```bash
+cd api
+cp .env.example .env.development
+cd ..
+make run
+```
 
-   ```bash
-   pnpm install
-   ```
+The API runs behind Caddy at `https://localhost`. The first browser request may show a self-signed certificate warning, which is expected for local HTTPS.
 
-3. Start the development server:
+### 3. Extractor
 
-   ```bash
-   pnpm run dev
-   ```
+Start the API first, then configure and run the extractor:
 
-4. Access the app at `https://localhost:3000`.
+```bash
+cd extractor
+cp .env.example .env.development
+cd ..
+make build-extractor
+```
 
-> [!NOTE]
-> We are running the app in development [through HTTPS](https://vercel.com/guides/access-nextjs-localhost-https-certificate-self-signed)
+Relevant extractor environment variables:
 
-### 2. **API (Go HTTP API)**
+- `BASE_URL`: API base URL, for example `https://localhost`.
+- `API_KEY`: shared key sent as the `x-api-key` header.
+- `EXTRACTOR_URLS`: optional comma-separated or newline-separated source URLs.
+- `EXTRACTOR_SELECTOR`: optional CSS selector for the main content area.
 
-The API can be run using Docker, with the project utilizing a makefile for ease of development. Caddy is used as a reverse proxy to serve the API over HTTPS.
+## Why This Matters
 
-#### Prerequisite: **Set up the `.env` file**
-
-1. Copy the environment file:
-
-   ```bash
-   cp .env.example .env.development
-   ```
-
-2. Obtain the **API_KEY** required for the Google Gemini API by visiting [Google Gemini API](https://ai.google.dev/gemini-api/docs/api-key) and add it to the `.env` file under `API_KEY`.
-
-#### Run via Docker with Makefile
-
-**Steps:**
-
-1. Use the makefile to spin up the API:
-
-   ```bash
-   make run
-   ```
-
-   This will spin up the necessary Docker containers using Docker Compose, including Caddy as a reverse proxy.
-
-2. The API will be available at `https://localhost`.
-
-> [!WARNING]
-> When accessing `https://localhost` for the first time, your browser may show a security warning due to the self-signed certificate used for local development. You will need to explicitly grant permission to proceed to the site. This is normal for local HTTPS setups and does not indicate a security issue with your application.
-
-### 3. **Extractor (Go Script)**
-
-The extractor scrapes Nigerian legal websites for financial law judgments and sends the results to the API. The process is managed via the makefile.
-
-#### Prerequisite: **Set up the `.env` file**
-
-1. Copy the environment file:
-
-   ```bash
-   cp .env.example .env.development
-   ```
-
-**Steps:**
-
-1. Build and run the extractor using the makefile:
-
-   ```bash
-   make build-extractor
-   ```
-
-   This will build and run the extractor executable, which will fetch the legal data and send it to the API automatically.
+LawyerGPT explores how legal AI products can be adapted to local legal systems rather than only generic common-law examples. The architecture is intentionally practical: a React product surface, a Go ingestion pipeline for heavy document processing, vector search for grounded answers, and model/provider boundaries that can be swapped as costs and model quality change.
 
 ## Security Note
 
-While using HTTPS with a self-signed certificate enhances security for local development, it's important to note that this setup is not suitable for production environments. In a production setting, you should use a properly issued SSL/TLS certificate from a recognized Certificate Authority.
+Local HTTPS uses a self-signed certificate for development convenience. Production deployments should use a certificate issued by a trusted certificate authority and should keep all API keys, database credentials, and rate-limit keys out of source control.

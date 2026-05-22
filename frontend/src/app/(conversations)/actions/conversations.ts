@@ -1,6 +1,7 @@
 "use server";
 import "server-only";
 import { google } from "@/lib/ai/google";
+import { TITLE_MODEL } from "@/lib/ai/models";
 import { generateTextInstruction, generateTextSystemPrompt } from "@/lib/ai/prompts";
 import { db } from "@/lib/db";
 import { conversations } from "@/lib/db/schema/conversations";
@@ -10,7 +11,7 @@ import { generateText } from "ai";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-const model = google("gemini-1.5-flash", {
+const model = google(TITLE_MODEL, {
 	safetySettings: [
 		{
 			category: "HARM_CATEGORY_DANGEROUS_CONTENT",

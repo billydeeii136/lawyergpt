@@ -1,5 +1,6 @@
 import { findRelevantContent } from "@/lib/ai/embedding";
 import { google } from "@/lib/ai/google";
+import { CHAT_MODEL } from "@/lib/ai/models";
 import { chatSystemPrompt } from "@/lib/ai/prompts";
 import { hasAuthCookie } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 			}
 		}
 		const result = await streamText({
-			model: google("gemini-1.5-flash"),
+			model: google(CHAT_MODEL),
 			maxSteps: 3,
 			messages: m,
 			system: chatSystemPrompt,
