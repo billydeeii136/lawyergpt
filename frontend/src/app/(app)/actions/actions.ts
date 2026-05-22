@@ -24,7 +24,6 @@ export async function createNewConversation(userId: string) {
 
 		return newConversationId;
 	} catch (error) {
-		// ideally use useActionState and co but this is fun
 		console.error("Failed to create new conversation:", error);
 		revalidatePath("/?error=A problem occurred creating a new conversation");
 		redirect("/?error=A problem occurred creating a new conversation");

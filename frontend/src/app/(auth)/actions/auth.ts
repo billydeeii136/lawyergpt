@@ -8,9 +8,33 @@ import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+
 type State = {
 	status: string;
 };
+
+const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
+
+type SessionUser = {
+	id: string;
+	email: string;
+	name: string;
+};
+
+function setSessionCookies(user: SessionUser) {
+	const cookieStore = cookies();
+	const options = {
+		httpOnly: true,
+		secure: env.NODE_ENV === "production",
+		maxAge: SESSION_MAX_AGE,
+		path: "/",
+	};
+
+	cookieStore.set("userId", user.id, options);
+	cookieStore.set("user", user.email, options);
+	cookieStore.set("name", user.name, options);
+}
+
 const signUpSchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	email: z.string().email("Invalid email address"),
@@ -31,34 +55,23 @@ export async function signUp(prevState: State, formData: FormData) {
 			return { status: "error" };
 		}
 
-		const u = await db
+		const [createdUser] = await db
 			.insert(users)
 			.values({
 				name: validatedFields.data.name,
 				email: validatedFields.data.email,
 			})
+			.onConflictDoUpdate({
+				target: users.email,
+				set: { name: validatedFields.data.name },
+			})
 			.returning({
 				id: users.id,
+				name: users.name,
+				email: users.email,
 			});
-		// ideally you make it a dictionary then deserialise but idgaf :)
-		cookies().set("userId", u[0].id, {
-			httpOnly: true,
-			secure: env.NODE_ENV === "production",
-			maxAge: 60 * 60 * 24 * 7, // 1 week
-			path: "/",
-		});
-		cookies().set("user", validatedFields.data.email, {
-			httpOnly: true,
-			secure: env.NODE_ENV === "production",
-			maxAge: 60 * 60 * 24 * 7, // 1 week
-			path: "/",
-		});
-		cookies().set("name", validatedFields.data.name, {
-			httpOnly: true,
-			secure: env.NODE_ENV === "production",
-			maxAge: 60 * 60 * 24 * 7, // 1 week
-			path: "/",
-		});
+
+		setSessionCookies(createdUser);
 
 		return { status: "success" };
 	} catch {
@@ -84,27 +97,9 @@ export async function logIn(prevState: State, formData: FormData) {
 		if (!existingUser.length) {
 			return { status: "error" };
 		}
-		console.log("existing user", existingUser);
 		const { name, id } = existingUser[0];
 
-		cookies().set("userId", id, {
-			httpOnly: true,
-			secure: env.NODE_ENV === "production",
-			maxAge: 60 * 60 * 24 * 7, // 1 week
-			path: "/",
-		});
-		cookies().set("user", validatedFields.data.email, {
-			httpOnly: true,
-			secure: env.NODE_ENV === "production",
-			maxAge: 60 * 60 * 24 * 7, // 1 week
-			path: "/",
-		});
-		cookies().set("name", name, {
-			httpOnly: true,
-			secure: env.NODE_ENV === "production",
-			maxAge: 60 * 60 * 24 * 7, // 1 week
-			path: "/",
-		});
+		setSessionCookies({ id, name, email: validatedFields.data.email });
 
 		return { status: "success" };
 	} catch {
