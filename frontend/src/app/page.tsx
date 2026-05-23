@@ -10,7 +10,6 @@ export default function Home({
 	searchParams: { error?: string };
 }) {
 	const error = searchParams.error ? decodeURIComponent(searchParams.error) : null;
-	console.log("Error query param", error);
 	const currentHour = new Date().getHours();
 	let greeting = "Good morning";
 	if (currentHour >= 12 && currentHour < 18) {

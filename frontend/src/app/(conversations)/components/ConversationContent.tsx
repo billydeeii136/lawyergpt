@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import type { MessageType } from "@/lib/db/schema/conversations";
-import { useSidebarStore } from "@/lib/store/sidebar";
 import { cn } from "@/lib/utils";
 import { useChat } from "ai/react";
 import Avatar from "boring-avatars";
@@ -39,10 +38,6 @@ async function fetchLimitStatus(): Promise<{
 		const data = await response.json();
 
 		if (!data.success) {
-			// Handle rate limiting
-			if (data.remaining !== undefined) {
-				console.log(`Rate limit remaining: ${data.remaining}`);
-			}
 			throw new Error(data.error || "An error occurred");
 		}
 
@@ -59,12 +54,7 @@ export default function ConversationContent({
 }: { conversationId: string; initialMessages: Array<MessageType>; name: string }) {
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const [isFirstMessage, setIsFirstMessage] = useState(true);
-	const {
-		data,
-		error: remainingError,
-		isLoading: loading,
-		mutate,
-	} = useSWR<LimitStatus>("/api/limit", fetchLimitStatus, {
+	const { data, mutate } = useSWR<LimitStatus>("/api/limit", fetchLimitStatus, {
 		refreshInterval: 30000,
 		revalidateOnFocus: false,
 	});
@@ -72,11 +62,8 @@ export default function ConversationContent({
 		api: `/api/chat/${conversationId}`,
 		initialMessages,
 		onFinish: async (message) => {
-			console.log("FINISH");
 			try {
 				if (isFirstMessage) {
-					console.log("first message", message);
-					console.log(messages);
 					const result = await generateTitle(conversationId, `${message.content}`);
 					if (typeof result === "string") {
 						toast.error(result);
@@ -84,15 +71,12 @@ export default function ConversationContent({
 					}
 					await mutate();
 					setIsFirstMessage(false);
-					console.log("ALL DOWN");
 				}
-			} catch (error) {
-				console.log(error);
+			} catch {
 				toast.error("An error occurred");
 			}
 		},
 	});
-	const sidebarOpen = useSidebarStore((state) => state.sidebarOpen);
 
 	useEffect(() => {
 		if (messages) {
@@ -104,12 +88,10 @@ export default function ConversationContent({
 			toast.error(error.message || "Something went wrong");
 		}
 	}, [error]);
-	console.log(data);
-	console.log("is the sidebar open?", sidebarOpen);
 	return (
 		<>
 			{/* Chat messages */}
-			<div className="h-[85vh] space-y-4 overflow-x-clip overflow-y-auto p-4">
+			<div className="h-[85vh] space-y-4 overflow-y-auto overflow-x-clip p-4">
 				{messages.map((message) => (
 					<div
 						key={message.id}

@@ -5,6 +5,9 @@ import { Upload, X } from "lucide-react";
 import { useCallback, useState } from "react";
 import { type FileRejection, useDropzone } from "react-dropzone";
 import { toast } from "sonner";
+
+const uploadUrl = new URL("/upload", env.NEXT_PUBLIC_UPLOADER_URL).toString();
+
 export default function FileUploadClient() {
 	const [files, setFiles] = useState<Array<File>>([]);
 	const [uploading, setUploading] = useState(false);
@@ -12,7 +15,6 @@ export default function FileUploadClient() {
 
 	const onDrop = useCallback(
 		async (acceptedFiles: Array<File>, fileRejections: Array<FileRejection>) => {
-			console.log(fileRejections);
 			if (fileRejections.length > 0) {
 				for (const { file, errors } of fileRejections) {
 					for (const error of errors) {
@@ -22,7 +24,6 @@ export default function FileUploadClient() {
 				return;
 			}
 			setError(false);
-			console.log(acceptedFiles);
 			const files = acceptedFiles.map((file) => {
 				const nameParts = file.name.split(".");
 				const ext = nameParts.pop();
@@ -33,7 +34,6 @@ export default function FileUploadClient() {
 				}
 				return file;
 			});
-			console.log("Files are", files);
 			setFiles(files);
 			setUploading(true);
 			const formData = new FormData();
@@ -41,9 +41,8 @@ export default function FileUploadClient() {
 				formData.append("documents", files[i]);
 			}
 
-			// use server action secured with cookie
 			try {
-				const r = await fetch(`${env.NEXT_PUBLIC_UPLOADER_URL}/upload`, {
+				const r = await fetch(uploadUrl, {
 					method: "POST",
 					body: formData,
 					headers: {

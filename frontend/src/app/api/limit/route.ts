@@ -16,7 +16,6 @@ export async function GET(req: NextRequest) {
 	}
 	const userId = cookies().get("userId")?.value;
 	const user = cookies().get("user")?.value;
-	console.log(user);
 	try {
 		if (user !== env.PRIMARY_MAIL_I && user !== env.PRIMARY_MAIL_II) {
 			const ratelimit = await unkey.limit(userId as string, { cost: 0 });

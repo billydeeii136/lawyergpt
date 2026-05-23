@@ -21,6 +21,16 @@ type Result struct {
 	TextContent string `json:"textContent"`
 }
 
+var defaultURLs = []string{
+	"https://nigerialii.org/akn/ng/judgment/ngca/2014/1/eng@2014-02-26",
+	"https://nigerialii.org/akn/ng/judgment/ngsc/2016/51/eng@2016-02-11",
+	"https://nigerialii.org/akn/ng/judgment/ngsc/1989/16/eng@1989-01-19",
+	"https://nigerialii.org/akn/ng/judgment/ngsc/1989/24/eng@1989-01-20",
+	"https://nigerialii.org/akn/ng/judgment/ngsc/1989/26/eng@1989-01-20",
+	"https://nigerialii.org/akn/ng/judgment/ngsc/1976/35/eng@1976-06-04",
+	"https://nigerialii.org/akn/ng/judgment/ngca/2013/1/eng@2013-02-10",
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a
@@ -50,21 +60,44 @@ func LoadEnv(filename string) error {
 	}
 	return scanner.Err()
 }
-func main() {
 
+func configuredURLs() []string {
+	rawURLs := strings.TrimSpace(os.Getenv("EXTRACTOR_URLS"))
+	if rawURLs == "" {
+		return defaultURLs
+	}
+
+	urls := strings.FieldsFunc(rawURLs, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r'
+	})
+
+	configured := make([]string, 0, len(urls))
+	for _, url := range urls {
+		if trimmed := strings.TrimSpace(url); trimmed != "" {
+			configured = append(configured, trimmed)
+		}
+	}
+
+	if len(configured) == 0 {
+		return defaultURLs
+	}
+	return configured
+}
+
+func contentSelector() string {
+	selector := strings.TrimSpace(os.Getenv("EXTRACTOR_SELECTOR"))
+	if selector == "" {
+		return ".content-and-enrichments"
+	}
+	return selector
+}
+
+func main() {
 	err := LoadEnv(".env.development")
 	if err != nil && !os.IsNotExist(err) {
 		log.Printf("Error loading .env.development: %v", err)
 	}
-	urls := []string{
-		"https://nigerialii.org/akn/ng/judgment/ngca/2014/1/eng@2014-02-26",
-		"https://nigerialii.org/akn/ng/judgment/ngsc/2016/51/eng@2016-02-11",
-		"https://nigerialii.org/akn/ng/judgment/ngsc/1989/16/eng@1989-01-19",
-		"https://nigerialii.org/akn/ng/judgment/ngsc/1989/24/eng@1989-01-20",
-		"https://nigerialii.org/akn/ng/judgment/ngsc/1989/26/eng@1989-01-20",
-		"https://nigerialii.org/akn/ng/judgment/ngsc/1976/35/eng@1976-06-04",
-		"https://nigerialii.org/akn/ng/judgment/ngca/2013/1/eng@2013-02-10",
-	}
+	urls := configuredURLs()
 	results := processURLs(urls)
 	fmt.Printf("results %v", results)
 	fmt.Printf("Results????")
@@ -130,7 +163,7 @@ func scrapeTextContent(url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return doc.Find(".content-and-enrichments").Text(), nil
+	return doc.Find(contentSelector()).Text(), nil
 }
 func batchResults(results []Result) [][]Result {
 	var batches [][]Result
