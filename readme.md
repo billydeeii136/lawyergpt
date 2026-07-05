@@ -111,3 +111,10 @@ LawyerGPT explores how legal AI products can be adapted to local legal systems r
 ## Security Note
 
 Local HTTPS uses a self-signed certificate for development convenience. Production deployments should use a certificate issued by a trusted certificate authority and should keep all API keys, database credentials, and rate-limit keys out of source control.
+
+## Harvey Elite Upgrade
+This repository includes a /.harvey hardening profile for secure legal document parsing, case research, and compliance workflows.
+Key files:
+- .harvey/HARVEY_ELITE_PROFILE.yaml
+- .harvey/COMPLIANCE_CONTROLS.md
+- .harvey/CONNECTORS.json
